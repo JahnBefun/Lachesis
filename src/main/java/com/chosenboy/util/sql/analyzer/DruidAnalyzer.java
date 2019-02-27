@@ -8,10 +8,7 @@ import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.stat.TableStat;
 import com.alibaba.druid.util.JdbcConstants;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.*;
 
 public class DruidAnalyzer {
     public static Map<String, TreeSet<String>> getFromTo (String sql) throws ParserException {
@@ -54,6 +51,29 @@ public class DruidAnalyzer {
         return fromTo;
     }
 
+    public static Map<String, TreeSet<String>> analyse (String sql) throws ParserException {
+        List<SQLStatement> stmts = SQLUtils.parseStatements(sql, JdbcConstants.HIVE);
+
+        if (stmts == null) {
+            return null;
+        }
+
+        String database="DEFAULT";
+        for (SQLStatement stmt : stmts) {
+            SchemaStatVisitor statVisitor = SQLUtils.createSchemaStatVisitor(JdbcConstants.HIVE);
+            if (stmt instanceof SQLUseStatement) {
+                database = ((SQLUseStatement) stmt).getDatabase().getSimpleName().toUpperCase();
+            }
+            stmt.accept(statVisitor);
+            Collection<TableStat.Column> columns = statVisitor.getColumns();
+            columns.forEach(column -> {
+                System.out.println(column.getTable());
+                System.out.println(column.getName());
+            });
+        }
+        return null;
+    }
+
     public static void main(String[] args) {
        String sql = "-- step 1 step1\n" +
                 "USE db1;\n" +
@@ -72,10 +92,11 @@ public class DruidAnalyzer {
                 "LEFT JOIN db2.tb3 b ON (a.filed4 = b.filed4)\n" +
                 "WHERE a.filed4 = 1\n" +
                 "  AND a.filed5 = 0;\n";
-        Map<String, TreeSet<String>> result = DruidAnalyzer.getFromTo(sql);
+/*        Map<String, TreeSet<String>> result = DruidAnalyzer.getFromTo(sql);
         result.forEach((key, set) -> {
             System.out.println(key);
             set.forEach(item -> System.out.println(item));
-        });
+        });*/
+        DruidAnalyzer.analyse(sql);
     }
 }
